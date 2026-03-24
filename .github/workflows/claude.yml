@@ -16,11 +16,13 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
+      checks: write
     steps:
       - uses: actions/checkout@v4
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           assignee_trigger: true
           prompt: Read the issue title and body, implement the requested feature, and open a PR.
           show_full_output: true
