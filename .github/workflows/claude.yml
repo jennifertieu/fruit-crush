@@ -15,8 +15,9 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
     steps:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: ${{ (contains(github.event.issue.labels.*.name, 'claude-opus') || contains(github.event.pull_request.labels.*.name, 'claude-opus')) && 'claude-opus-4-6' || 'claude-sonnet-4-6' }}
+          claude_args: ${{ (contains(github.event.issue.labels.*.name, 'claude-opus') || contains(github.event.pull_request.labels.*.name, 'claude-opus')) && '--model claude-opus-4-6' || '--model claude-sonnet-4-6' }}
