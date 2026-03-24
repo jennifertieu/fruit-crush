@@ -146,7 +146,7 @@ Reference: [RESEARCH.md - Level Objectives](./RESEARCH.md#level-objectives).
 4. **Level complete** — When all objectives are met, trigger bonus phase (remaining moves convert to random special item activations), show star rating (1-3 stars).
 5. **Level fail** — When moves run out without completing objectives, offer retry.
 6. **Level select screen** — Grid of levels showing locked/unlocked state and star rating. Unlock levels sequentially.
-7. **Design 10-20 initial levels** with progressive difficulty.
+7. **Design 30 initial levels** with progressive difficulty.
 
 ### Phase 6: Obstacles
 
@@ -158,7 +158,28 @@ Reference: [RESEARCH.md - Obstacles and Challenges](./RESEARCH.md#obstacles-and-
 4. **Chocolate/spreading blockers** — Spread to one adjacent tile per turn if not cleared. Cleared by matching adjacent fruits.
 5. **Licorice/barriers** — Block the connection between two adjacent cells, preventing swaps across the barrier.
 
-### Phase 7: Scoring and Progression
+### Phase 7: Audio
+
+1. **Background music** — Loop ambient background music during gameplay. Use OGG/MP3 with Phaser's audio manager.
+2. **Sound effects** — Match sounds, cascade sounds, special item activation, level complete, level fail.
+3. **Mute/volume toggle** — Persistent mute button in the HUD (icon only). Save preference to IndexedDB so it persists across sessions.
+4. **Audio autoplay** — Defer all audio until first user interaction (tap on menu screen) to comply with browser autoplay restrictions.
+
+### Phase 8: Boosters
+
+1. **Booster types:** shovel (remove one fruit), bomb (clear 3x3 area), shuffle (reshuffle board), extra moves (+5 moves).
+2. **Earn condition — level fail:** Award one free booster when a player fails a level multiple times (e.g., 3+ fails on the same level).
+3. **Earn condition — combo streak:** Award a booster when a player chains multiple matches within 10-15 seconds.
+4. **Booster HUD** — Display available boosters below the game board. Tap to select, then tap a fruit/tile to apply.
+5. **Booster inventory** — Persist booster counts in IndexedDB.
+
+### Phase 9: Accessibility
+
+1. **Colorblind mode** — Each fruit has a distinct shape/pattern in addition to color (e.g., cherry = round with stem, lemon = oval, grape = cluster of circles). Pattern-only mode toggle in settings.
+2. **Touch target size** — All interactive elements >= 44px per Apple HIG / Android guidelines.
+3. **High contrast UI** — Ensure text and UI elements meet WCAG AA contrast ratios.
+
+### Phase 10: Scoring and Progression
 
 Reference: [RESEARCH.md - Scoring System](./RESEARCH.md#scoring-system).
 
@@ -169,7 +190,7 @@ Reference: [RESEARCH.md - Scoring System](./RESEARCH.md#scoring-system).
 5. **Star rating thresholds:** Defined per level in JSON. 1 star = objective complete, 2-3 stars = score-based.
 6. **Persist progress:** Save level completion, star ratings, and high scores to IndexedDB via localForage.
 
-### Phase 8: PWA and Offline Support
+### Phase 11: PWA and Offline Support
 
 1. **Service worker** — Workbox pre-caches all game assets (HTML, JS, CSS, sprites, audio, level JSON) during install.
 2. **Cache-first strategy** — Serve from cache, fall back to network. Update cache in background when online.
@@ -177,14 +198,14 @@ Reference: [RESEARCH.md - Scoring System](./RESEARCH.md#scoring-system).
 4. **Install prompt** — Show "Add to Home Screen" prompt on supported browsers.
 5. **Offline indicator** — Small icon/badge showing offline status (informational only, game is fully playable).
 
-### Phase 9: Supabase Hosting and Deployment
+### Phase 12: Supabase Hosting and Deployment
 
-1. **Static hosting** — Deploy the Vite production build (`dist/`) to Supabase Storage as a static site.
+1. **Static hosting only** — Deploy the Vite production build (`dist/`) to Supabase Storage as a static site. No Auth or database setup needed for the initial release.
 2. **CI/CD pipeline** — GitHub Actions workflow: on push to `main`, run tests, build, deploy to Supabase.
 3. **Custom domain** (optional) — Configure a custom domain via Supabase dashboard.
 4. **Edge Functions** (future) — Optional Supabase Edge Functions for leaderboard API if multiplayer/social features are added later.
 
-### Phase 10: Capacitor Native Wrapping
+### Phase 13: Capacitor Native Wrapping (Deferred — post web release)
 
 1. **Initialize Capacitor** — `npx cap init` with the Vite build output directory.
 2. **Add platforms** — `npx cap add ios` and `npx cap add android`.
@@ -221,7 +242,7 @@ Reference: [RESEARCH.md - Scoring System](./RESEARCH.md#scoring-system).
 - **Ice under a stone block** — Ice should not exist under stone blocks. Level validation should prevent this.
 
 ### Performance and Platform
-- **Low-end device performance** — Limit particle effects and simultaneous tweens. Use sprite sheets (texture atlases) to minimize draw calls. Target 30fps minimum.
+- **Low-end device performance** — Minimum target: iPhone 8 / Android devices from 2018+. Limit particle effects and simultaneous tweens. Use sprite sheets (texture atlases) to minimize draw calls. Target 30fps minimum on these devices.
 - **iOS Safari PWA quirks** — Service worker cache can be evicted after 7 days of inactivity on iOS. Prompt users to open the app periodically or use Capacitor build for iOS.
 - **Screen size variation** — Grid must scale proportionally. Use Phaser's `Scale.FIT` mode with a fixed aspect ratio. Ensure touch targets remain >= 44px.
 - **Audio autoplay restrictions** — Browsers block autoplay audio. Play audio only after the first user interaction (tap to start on menu screen).
@@ -259,30 +280,34 @@ Reference: [RESEARCH.md - Scoring System](./RESEARCH.md#scoring-system).
 
 ### Manual Testing Checklist
 
-- [ ] Test on iOS Safari (PWA mode)
-- [ ] Test on Android Chrome (PWA mode)
-- [ ] Test Capacitor build on physical iOS device
-- [ ] Test Capacitor build on physical Android device
-- [ ] Verify haptic feedback on special item activation
-- [ ] Verify audio plays after first interaction
+- [ ] Test on iOS Safari (PWA mode) — iPhone 8 minimum
+- [ ] Test on Android Chrome (PWA mode) — 2018+ device minimum
+- [ ] Verify audio plays after first interaction (no autoplay errors)
+- [ ] Verify background music loops and mute toggle persists
+- [ ] Verify colorblind mode shows distinct fruit shapes/patterns
+- [ ] Verify booster awarded on level fail (3+ fails)
+- [ ] Verify booster awarded on combo streak (multiple matches in 10-15s)
 - [ ] Verify "Add to Home Screen" prompt appears
-- [ ] Play through 10+ levels to validate difficulty progression
+- [ ] Play through all 30 levels to validate difficulty progression
+- [ ] Capacitor iOS/Android builds (deferred — after web release)
 
 ---
 
 ## Clarifying Questions
 
-The following questions should be reviewed and answered before or during implementation:
+All questions have been answered. Decisions are reflected in the implementation phases above.
 
-1. **Level count target** — How many levels should be included in the initial release? (Suggested: 20-30 levels with progressive difficulty.)
-2. **Art style** — Should we use simple geometric/flat fruit sprites, or aim for a more polished illustrated style? Do we have a designer, or should we use open-source/AI-generated assets?
-3. **Audio** — Do we want background music in addition to sound effects? Should there be a mute/volume toggle?
-4. **Boosters** — Should boosters (shovel, bomb, shuffle, extra moves) be included in the initial release, or deferred? If included, how are they earned (free on level fail, or earned through star collection)?
-5. **Supabase features beyond hosting** — Should we set up Supabase Auth and a database for player profiles and leaderboards, or keep it purely static hosting for now?
-6. **Monetization** — The game is ad-free, but are there any other monetization considerations (e.g., one-time purchase on app stores)?
-7. **Accessibility** — Should we support colorblind mode (fruit shapes/patterns in addition to colors)? Any other accessibility requirements?
-8. **Target devices** — What is the minimum supported device? (Suggested: iPhone 8 / Android devices from 2018+, to set performance budget.)
-9. **Capacitor priority** — Should iOS/Android app store builds be part of the initial release, or is web-only PWA sufficient to start?
+| # | Question | Decision |
+|---|---|---|
+| 1 | Level count target | **30 levels** with progressive difficulty |
+| 2 | Art style | **Simple flat fruit sprites** — open-source or AI-generated assets |
+| 3 | Audio | **Background music + sound effects** with a persistent mute/volume toggle |
+| 4 | Boosters | **Included in initial release** — awarded free on repeated level fails (3+) or combo streaks (multiple matches within 10-15s) |
+| 5 | Supabase beyond hosting | **Static hosting only** — no Auth or database for v1 |
+| 6 | Monetization | **None** — ad-free, no in-app purchases |
+| 7 | Accessibility | **Colorblind mode** — distinct fruit shapes/patterns in addition to colors |
+| 8 | Target devices | **iPhone 8 / Android 2018+** as performance baseline |
+| 9 | Capacitor priority | **Web-only PWA first** — app store builds deferred to post-launch |
 
 ---
 
