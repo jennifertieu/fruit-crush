@@ -1,187 +1,399 @@
-# Fruit Crushed Ice - Mobile Game Plan
+# Fruit Crushed Ice - Implementation Plan
 
 ## Overview
 
-This document evaluates options for building Fruit Crushed Ice as a mobile game that works offline, based on the game requirements outlined in [RESEARCH.md](./RESEARCH.md). Three primary approaches are considered, with a recommended tech stack at the end.
+This document is the implementation plan for **Fruit Crushed Ice**, a match-3 puzzle game built as a **Progressive Web App (PWA) with Phaser.js + Capacitor**. The game is ad-free and designed for parents to enjoy without interruption. Game mechanics are defined in [RESEARCH.md](./RESEARCH.md).
 
 ---
 
-## Option 1: PWA with Phaser.js (Web-First)
+## Tech Stack
 
-Build the game as a Progressive Web App using a JavaScript game framework, wrapped for app store distribution.
-
-### Tech Stack
-
-- **Game Engine:** [Phaser 3.80+](https://phaser.io/) — full-featured 2D game framework with built-in scene management, tweening, input handling, and audio
-- **Language:** TypeScript
-- **Offline Support:** Service workers via [Workbox](https://developer.chrome.com/docs/workbox/) for asset caching
-- **Native Wrapper:** [Capacitor](https://capacitorjs.com/) or [PWABuilder](https://www.pwabuilder.com/) for app store distribution
-- **Build Tool:** Vite
-
-### Pros
-
-- **Fastest development time** — Phaser provides built-in tweening (critical for tile-swap animations), touch/swipe input handling, scene management, and audio out of the box
-- **Single codebase** deploys to web, iOS, and Android
-- **Large ecosystem** — 1800+ examples, active community, extensive documentation
-- **TypeScript support** built-in
-- **Phaser is purpose-built for 2D games** like match-3 puzzles, with proven examples in this genre
-- **Small bundle** — Phaser is ~1.2MB, and game assets for a match-3 are typically 5-15MB total
-- **Capacitor** provides native device access (haptics, local storage) while keeping the web codebase
-
-### Cons
-
-- **iOS PWA limitations** — service workers run with restrictions on iOS Safari; storage quotas are tighter than Chrome
-- **No native rendering** — runs in a WebView/canvas, which may feel slightly less smooth than a fully native solution on low-end devices
-- **App store approval** — Apple has historically been stricter with web-wrapped apps, though Capacitor apps generally pass review
-
-### Offline Strategy
-
-1. Register a service worker that pre-caches all game assets (HTML, CSS, JS, images, sounds) during the `install` event
-2. Use a cache-first strategy to serve assets from cache and fall back to the network
-3. Store level progress in IndexedDB or localStorage
-4. Keep the cache small — use compressed textures (WebP) and audio (OGG/MP3) with progressive loading for later levels
+| Layer | Technology | Version / Notes |
+|---|---|---|
+| **Game Engine** | [Phaser 3](https://phaser.io/) | 3.80+ — 2D game framework with built-in tweening, input, audio, scene management |
+| **Language** | TypeScript | Strict mode enabled |
+| **Build Tool** | Vite | Fast HMR for development, optimized production builds |
+| **PWA / Offline** | [Workbox](https://developer.chrome.com/docs/workbox/) | Service worker generation, asset pre-caching |
+| **Native Wrapper** | [Capacitor](https://capacitorjs.com/) | iOS + Android app store distribution |
+| **State Persistence** | [localForage](https://localforage.github.io/localForage/) | IndexedDB wrapper for level progress, settings |
+| **Asset Format** | WebP (images), OGG + MP3 (audio), JSON (level data) | Compressed for small bundle |
+| **Unit Testing** | [Vitest](https://vitest.dev/) | Fast, Jest-compatible, works with Vite |
+| **E2E Testing** | [Playwright](https://playwright.dev/) | Cross-browser, touch simulation |
+| **Hosting** | [Supabase](https://supabase.com/) | Static file hosting via Supabase Storage + CDN |
+| **CI/CD** | GitHub Actions | Lint, test, build, deploy on merge to `main` |
 
 ---
 
-## Option 2: Flutter with Flame Engine (Native-First)
+## Project Structure
 
-Build the game natively using Flutter and the Flame game engine.
-
-### Tech Stack
-
-- **Framework:** [Flutter](https://flutter.dev/) with [Flame](https://flame-engine.org/) game engine
-- **Language:** Dart
-- **Offline Support:** Native — no internet required by default
-- **State Management:** Riverpod or Bloc for game state
-- **Storage:** Hive or SharedPreferences for level progress
-
-### Pros
-
-- **True native performance** — Flutter's Impeller rendering engine delivers smooth 60fps animations
-- **Official Casual Games Toolkit** — Flutter provides templates and tooling specifically for puzzle and casual games
-- **Proven match-3 implementations** exist (e.g., [Flutter Crush](https://github.com/boeledi/flutter_crush))
-- **Offline by default** — native apps don't need service workers or special caching; all assets are bundled
-- **App store distribution** is straightforward
-- **Single codebase** for iOS, Android, web, and desktop
-- **~46% market share** among cross-platform mobile developers in 2026
-
-### Cons
-
-- **Dart learning curve** — the team would need to learn Dart if not already familiar
-- **Flame is less mature** than Phaser for 2D game development — fewer examples and smaller community
-- **Larger app size** — Flutter apps have a higher baseline size (~15-20MB minimum) compared to a web-wrapped game
-- **Web export quality** — while Flutter supports web, the web build is heavier and less optimized than a native web game
-- **Slower iteration** — hot reload helps, but web-based game development with Phaser allows faster browser-based iteration and debugging
-
----
-
-## Option 3: React Native with Custom Canvas (Hybrid)
-
-Build the app shell in React Native with the game rendered on a canvas.
-
-### Tech Stack
-
-- **App Shell:** [React Native](https://reactnative.dev/)
-- **Game Rendering:** [react-native-skia](https://shopify.github.io/react-native-skia/) or embedded WebView with Phaser
-- **Language:** TypeScript
-- **Offline Support:** Native — assets bundled with the app
-
-### Pros
-
-- **Familiar to JavaScript/React developers**
-- **Native app shell** with good platform integration
-- **Large NPM ecosystem** for non-game features
-
-### Cons
-
-- **Not designed for games** — React Native lacks built-in game loop, tweening, scene management, and sprite handling
-- **Complex animation workarounds** — match-3 cascade animations, special item effects, and particle systems would require dropping into native code or using a WebView bridge
-- **Two rendering contexts** — mixing React Native UI with a game canvas creates complexity
-- **No game-specific toolkit** — everything must be built from scratch or via third-party libraries
-- **Worst of both worlds risk** — neither the full native performance of Flutter nor the rapid game development of Phaser
+```
+fruit-crush/
+├── src/
+│   ├── scenes/
+│   │   ├── BootScene.ts         # Preload assets, init service worker
+│   │   ├── MenuScene.ts         # Main menu, level select
+│   │   ├── GameScene.ts         # Core gameplay
+│   │   └── LevelCompleteScene.ts # Win/loss screen, star rating
+│   ├── objects/
+│   │   ├── Fruit.ts             # Sprite + type + special-item state
+│   │   ├── Board.ts             # Grid data model, cell management
+│   │   └── SpecialItem.ts       # Striped, Wrapped, Rainbow behaviour
+│   ├── utils/
+│   │   ├── matchDetector.ts     # Find matches on the board
+│   │   ├── cascadeResolver.ts   # Resolve falling fruits and chain reactions
+│   │   ├── scoring.ts           # Score calculation, multipliers
+│   │   ├── levelLoader.ts       # Load level JSON definitions
+│   │   └── deadlockDetector.ts  # Detect and handle no-valid-moves state
+│   ├── config/
+│   │   ├── gameConfig.ts        # Phaser game config, scene list
+│   │   ├── fruitTypes.ts        # Fruit type definitions (apple, orange, etc.)
+│   │   └── levels/              # Level JSON files (level-001.json, …)
+│   └── assets/
+│       ├── sprites/             # WebP fruit sprites, special item overlays
+│       ├── audio/               # OGG/MP3 sound effects and music
+│       └── fonts/               # Bitmap fonts for score display
+├── public/
+│   ├── manifest.json            # PWA manifest (name, icons, theme colour)
+│   └── sw.js                    # Service worker (generated by Workbox via Vite plugin)
+├── capacitor/
+│   ├── android/                 # Android native project
+│   └── ios/                     # iOS native project
+├── tests/
+│   ├── unit/                    # Vitest unit tests (pure logic functions)
+│   └── e2e/                     # Playwright E2E tests (game interactions)
+├── .github/
+│   └── workflows/
+│       ├── ci.yml               # Run lint + tests on PRs
+│       └── deploy.yml           # Build + deploy to Supabase on merge to main
+├── capacitor.config.ts
+├── vite.config.ts
+└── tsconfig.json
+```
 
 ---
 
-## Comparison Matrix
+## Implementation Plan
 
-| Criteria | PWA + Phaser | Flutter + Flame | React Native |
+### Phase 1 — Project Scaffold
+
+1. Initialize Vite + TypeScript project
+2. Install Phaser 3, localForage, Workbox Vite plugin
+3. Configure `tsconfig.json` with strict mode
+4. Set up Vitest and Playwright
+5. Add GitHub Actions CI workflow (lint, unit test, E2E test)
+6. Add Capacitor and initialise iOS + Android projects
+
+**Exit criteria:** `npm run dev` opens a blank Phaser canvas; `npm test` runs with zero failures.
+
+---
+
+### Phase 2 — Core Board and Match Logic
+
+This is the most critical phase. All logic in `utils/` must be covered by unit tests.
+
+#### 2.1 Board Initialisation
+
+- Create an N×M grid (default 7×7, configurable per level via JSON)
+- Randomly fill cells with fruit types (5–6 types per level, defined in level JSON)
+- Guarantee no matches exist at game start (re-roll any cells that form a match during fill)
+- Guarantee at least one valid move exists at game start (see deadlock handling)
+
+#### 2.2 Match Detection (`matchDetector.ts`)
+
+- Scan rows and columns for runs of 3+ identical fruits
+- Return a list of matched cells with their coordinates and match length
+- Identify match *shape* to determine special item creation:
+
+| Match Type | Shape | Special Item |
+|---|---|---|
+| 3 in a line | Straight | None |
+| 4 in a line | Straight | Striped Fruit |
+| 5 in an L-shape | L | Wrapped Fruit (Bomb) |
+| 5 in a T-shape | T | Wrapped Fruit (Bomb) |
+| 5 in a line | Straight | Rainbow Fruit |
+
+#### 2.3 Swap Validation
+
+- Only allow swaps with adjacent cells (up, down, left, right)
+- A swap is only valid if it produces at least one match
+- Animate an invalid swap attempt with a brief "bounce back" tween
+
+#### 2.4 Cascade / Gravity (`cascadeResolver.ts`)
+
+- After a match is cleared, shift fruits downward to fill gaps
+- Generate new fruits from the top to fill remaining empty cells
+- Re-run match detection after each gravity step
+- Each cascade level increments the combo multiplier for scoring
+- Continue until the board is stable (no new matches)
+
+---
+
+### Phase 3 — Special Items and Combos
+
+#### 3.1 Special Item Creation
+
+- When a match qualifies, place the special item sprite at the location where the player's selected fruit was
+
+#### 3.2 Special Item Activation
+
+- **Striped Fruit:** Clears entire row or column (direction based on how it was created — horizontal match → horizontal stripe)
+- **Wrapped Fruit:** Explodes 3×3 area around it; after the first explosion, it explodes a second time (classic Candy Crush behavior)
+- **Rainbow Fruit:** On swap with any fruit, clears all fruits of that colour from the board
+
+#### 3.3 Special Item Combos
+
+| Combination | Effect |
+|---|---|
+| Striped + Striped | Clears the full row AND full column of both fruits |
+| Wrapped + Wrapped | 5×5 explosion |
+| Striped + Wrapped | 3 rows + 3 columns (cross pattern) |
+| Rainbow + regular fruit | Clears all of that fruit's colour |
+| Rainbow + Striped | All fruits of one colour become striped and activate |
+| Rainbow + Wrapped | All fruits of one colour become wrapped and activate |
+| Rainbow + Rainbow | Clears entire board |
+
+---
+
+### Phase 4 — Level System
+
+#### 4.1 Level JSON Format
+
+```json
+{
+  "id": 1,
+  "gridWidth": 7,
+  "gridHeight": 7,
+  "fruitTypes": ["apple", "orange", "grape", "lemon", "watermelon"],
+  "moves": 30,
+  "objectives": [
+    { "type": "score", "target": 5000 }
+  ],
+  "obstacles": [],
+  "starThresholds": [3000, 5000, 8000]
+}
+```
+
+#### 4.2 Objective Types
+
+1. **Score target** — Reach a minimum score within the move limit
+2. **Clear ice** — Fruits sit on ice tiles; matching on that tile removes one ice layer (1–3 layers supported)
+3. **Collect fruits** — Gather a required count of specific fruit types
+4. **Drop ingredients** — Move special items (cherry, hazelnut) to the bottom row by clearing fruits beneath them
+5. **Clear obstacles** — Remove stone blocks, chains, or chocolate tiles
+
+#### 4.3 Obstacles
+
+| Obstacle | Behaviour |
+|---|---|
+| Ice tiles (1–3 layers) | Broken by matching on that cell; one layer per match |
+| Stone blocks | Immovable; cannot be matched; reduce board playable area |
+| Chains/locks | Fruit cannot be swapped; broken by matching adjacent fruits |
+| Chocolate | Spreads to an adjacent empty cell each turn; cleared by matching adjacent fruits |
+| Licorice barriers | Block connections between cells (no swaps across a barrier) |
+
+---
+
+### Phase 5 — Animations and Visuals
+
+All animations use Phaser's built-in tweening:
+
+- **Swap animation** — Smooth position tween (150ms)
+- **Invalid swap** — Tween to target position and back (200ms bounce)
+- **Match clear** — Scale-down and fade-out tween with particle burst
+- **Gravity fall** — Fruits fall into place with a soft bounce easing
+- **Special item creation** — Flash effect + icon overlay on the fruit
+- **Special item activation** — Flash beam (striped), ripple explosion (wrapped), colour-sweep (rainbow)
+- **Cascade** — Each chain level triggers progressively larger "combo" text
+
+---
+
+### Phase 6 — Audio
+
+- **Match sound** — Short pop for basic match
+- **Combo sound** — Escalating tone per cascade level
+- **Special item creation** — Distinct chime
+- **Special item activation** — Unique SFX per type
+- **Level complete** — Fanfare jingle
+- **Level fail** — Soft failure sting
+- All audio disabled/enabled via a toggle stored in localForage
+- Provide OGG with MP3 fallback; Phaser selects based on browser support
+
+---
+
+### Phase 7 — Scoring
+
+```
+basePoints = 60 per fruit cleared in a basic 3-match
+matchBonus = basePoints * (matchLength - 3) * 0.5    // for 4+ matches
+cascadeMultiplier = cascadeLevel * 1.5               // applied per chain level
+specialItemBonus = 200 per fruit cleared by a special item
+endOfLevelBonus = remainingMoves * 500               // random special items activate
+```
+
+Star thresholds are defined per level in the JSON. Score is displayed live with an animated counter.
+
+---
+
+### Phase 8 — PWA and Offline Support
+
+1. Use `vite-plugin-pwa` (wraps Workbox) to auto-generate the service worker
+2. Pre-cache all game assets (HTML, JS, CSS, sprites, audio, level JSON) at install time
+3. Cache strategy: **CacheFirst** for assets, **NetworkFirst** for future level downloads
+4. `manifest.json` configures app name, icons (192×192 and 512×512 WebP), `display: standalone`, `orientation: portrait`
+5. Level progress and settings stored in IndexedDB via localForage (survives app updates)
+
+---
+
+### Phase 9 — Native App (Capacitor)
+
+1. `npx cap add ios` and `npx cap add android`
+2. Configure `capacitor.config.ts` with app ID (`com.fruitcrush.game`) and web dir (`dist`)
+3. Use `@capacitor/haptics` for haptic feedback on matches and special item activations
+4. Use `@capacitor/preferences` for additional native key-value storage
+5. Run `npx cap sync` after each build to copy web assets to native projects
+6. Test on real devices via Xcode (iOS) and Android Studio
+
+---
+
+### Phase 10 — Hosting on Supabase
+
+1. Create a Supabase project and a public storage bucket (`game-assets`)
+2. GitHub Actions `deploy.yml` runs on merge to `main`:
+   - `npm run build` — outputs to `dist/`
+   - Upload `dist/` contents to Supabase Storage using the Supabase CLI
+   - Set `Cache-Control: public, max-age=31536000, immutable` on versioned assets
+   - Set `Cache-Control: no-cache` on `index.html` and `sw.js`
+3. Serve the app via Supabase Storage's CDN URL (or configure a custom domain)
+4. Environment variables (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`) stored as GitHub Actions secrets
+
+---
+
+### Phase 11 — Testing Strategy
+
+#### Unit Tests (Vitest) — `tests/unit/`
+
+All pure logic functions in `utils/` must have unit test coverage:
+
+| File | Tests |
+|---|---|
+| `matchDetector.ts` | Basic 3-match H/V, 4-match, 5-match L/T/straight, overlapping matches, no match |
+| `cascadeResolver.ts` | Gravity after single clear, chain cascade (2+ levels), fill from top |
+| `scoring.ts` | Base score, match bonus, cascade multiplier stacking, end-of-level bonus |
+| `deadlockDetector.ts` | Board with valid move, board with no valid moves, single-fruit board |
+| `levelLoader.ts` | Valid level JSON, missing field defaults, invalid JSON error handling |
+
+#### E2E Tests (Playwright) — `tests/e2e/`
+
+| Scenario | Steps |
+|---|---|
+| Valid swap creates match | Load level → swipe two adjacent matching fruits → verify cleared |
+| Invalid swap bounces back | Swipe non-matching pair → verify no match, fruits return |
+| Special item creation | Make a 4-match → verify striped fruit appears |
+| Special item activation | Tap striped fruit → verify entire row cleared |
+| Level complete | Complete all objectives → verify LevelCompleteScene shown |
+| Level fail | Exhaust all moves → verify fail screen shown |
+| Offline play | Disable network → reload page → verify game still loads and plays |
+| Score counter | Make matches → verify score increases correctly |
+
+---
+
+## Edge Cases
+
+| Scenario | Handling |
+|---|---|
+| **No valid moves (deadlock)** | `deadlockDetector` checks all possible swaps after each cascade. If none exist, display a "No moves!" message and auto-shuffle the board (up to 3 attempts). If still deadlocked after 3 shuffles, end the level as a loss. |
+| **Swap during animation** | Ignore all input while any tween or cascade is in progress (use a `locked` boolean flag on `GameScene`). |
+| **Special item created mid-cascade** | Queue special item activations after the cascade resolves to avoid conflicting animations. |
+| **Overlapping matches** | A cell can be part of both a row match and a column match simultaneously. The highest-priority special item is created (straight-5 > L/T-5 > straight-4 > none). |
+| **Rainbow + Rainbow** | Clear the entire board in a single activation; award maximum combo bonus. |
+| **Obstacle on last move** | Obstacles that spread (chocolate) do not spread on the final move; resolve win/loss check first. |
+| **Screen resize** | Phaser's `Scale.FIT` + `autoCenter` handles resize; grid re-centres and rescales. |
+| **Audio autoplay blocked** | First user interaction unlocks audio context (Phaser handles this via `AudioContext.resume()` on `pointerdown`). |
+| **Large match creates multiple special items** | Only one special item is created per match group (the most powerful shape match). |
+| **Ingredient at bottom on first move** | Level considered complete for the ingredient objective immediately; re-evaluate objectives on each cascade step. |
+| **localForage not available** | Fall back to `localStorage` if IndexedDB is unavailable (e.g., private browsing on iOS Safari). |
+| **Service worker update** | On new deployment, prompt user to refresh: "New version available — tap to update." |
+
+---
+
+## Clarifying Questions
+
+The following questions need to be resolved before or during implementation:
+
+1. **Grid size:** Should all levels use 7×7, or do some levels use 8×8 or irregular shapes? RESEARCH.md mentions both "7×7 or 8×8."
+
+2. **Number of levels at launch:** How many levels are planned for the initial release? This affects how much time to invest in the level editor vs. hand-crafting JSON.
+
+3. **Boosters:** Should in-game boosters (Shovel, Bomb, Shuffle, Extra Moves) be included at launch, or saved for a later release? They add significant scope.
+
+4. **Custom domain for Supabase hosting:** Do you have a domain to point at the Supabase CDN URL, or will the default Supabase Storage URL be used initially?
+
+5. **App store publishing:** Are we targeting both Apple App Store and Google Play Store at launch, or web-only first?
+
+6. **Fruit art style:** Should the fruit sprites be flat/minimalist vectors or illustrated/painted? This determines whether we source free assets or commission/create them.
+
+7. **Sound effects:** Do you have audio assets, or should we source free-to-use sound effects (e.g., from Freesound.org)?
+
+8. **Level progression gating:** Are levels unlocked sequentially (beat level N to unlock N+1), or are all levels available from the start?
+
+9. **User accounts / cross-device progress:** Is progress local-only (IndexedDB on the device) or should it sync across devices? Supabase Auth + Database could support this, but it adds significant scope.
+
+10. **Analytics:** Any preference for tracking level completion rates, common fail points, etc. (e.g., Supabase Analytics, Plausible, or none)?
+
+---
+
+## Previous Options Considered
+
+The following approaches were evaluated before settling on PWA + Phaser.js + Capacitor. They are retained here for reference.
+
+### Option A: Flutter with Flame Engine (Native-First)
+
+**Tech Stack:** Flutter, Flame game engine, Dart, Hive/SharedPreferences
+
+**Pros:**
+- True native performance via Flutter's Impeller renderer (smooth 60fps)
+- Offline by default — all assets bundled with the native app
+- Proven match-3 examples exist (e.g., [Flutter Crush](https://github.com/boeledi/flutter_crush))
+- Single codebase for iOS, Android, web, and desktop
+
+**Cons:**
+- Dart learning curve for a JavaScript/TypeScript team
+- Flame is less mature than Phaser — fewer examples and smaller community
+- Larger app size baseline (~15–20MB)
+- Web export is heavier and less optimised than a native web game
+
+---
+
+### Option B: React Native with Custom Canvas (Hybrid)
+
+**Tech Stack:** React Native, react-native-skia or Phaser in WebView, TypeScript
+
+**Pros:**
+- Familiar to JavaScript/React developers
+- Native app shell with good platform integration
+- Large NPM ecosystem
+
+**Cons:**
+- Not designed for games — lacks built-in game loop, tweening, scene management, and sprite handling
+- Complex animation workarounds for cascade effects and particle systems
+- Two rendering contexts create architectural complexity
+- Worst-of-both-worlds risk: neither full native performance nor rapid game development speed
+
+---
+
+### Comparison Matrix
+
+| Criteria | PWA + Phaser ✅ | Flutter + Flame | React Native |
 |---|---|---|---|
 | **Development Speed** | Fast | Medium | Slow |
 | **Match-3 Suitability** | Excellent | Good | Poor |
 | **Animation Performance** | Good (WebGL) | Excellent (Impeller) | Fair |
 | **Offline Support** | Good (service workers) | Excellent (native) | Excellent (native) |
-| **App Store Distribution** | Via Capacitor/PWABuilder | Native | Native |
+| **App Store Distribution** | Via Capacitor | Native | Native |
 | **Learning Curve** | Low (JS/TS) | Medium (Dart) | Low (JS/TS) |
-| **Community/Examples** | Large (Phaser ecosystem) | Growing (Flame) | Limited (for games) |
-| **Bundle Size** | Small (~5-15MB total) | Medium (~20-30MB) | Medium (~15-25MB) |
+| **Community / Examples** | Large (Phaser ecosystem) | Growing (Flame) | Limited (for games) |
+| **Bundle Size** | Small (~5–15MB) | Medium (~20–30MB) | Medium (~15–25MB) |
 | **Web Deployment** | Native web app | Possible but heavy | Not practical |
-
----
-
-## Recommendation: PWA with Phaser.js + Capacitor
-
-**Option 1 (PWA + Phaser.js)** is the recommended approach for the following reasons:
-
-### Why Phaser.js
-
-1. **Purpose-built for this exact game type** — Phaser is a 2D game framework with built-in support for everything a match-3 game needs: sprite management, tweening for swap/cascade animations, touch input with swipe detection, audio, and scene management for level transitions.
-
-2. **Fastest path to a playable game** — With Phaser's extensive example library and match-3 being one of the most common game genres, development can move quickly without building foundational game systems from scratch.
-
-3. **TypeScript support** — Aligns with modern development practices and the project's code conventions.
-
-### Why Capacitor for Native Distribution
-
-1. **Wraps the web game as a native app** — The Phaser game runs in a native WebView with access to device APIs (haptics, notifications, local storage).
-2. **App store distribution** — Publish to both Apple App Store and Google Play Store.
-3. **Maintained by the Ionic team** — Active development, good documentation, and a large community.
-
-### Why Not Flutter
-
-While Flutter has excellent performance and a casual games toolkit, the match-3 game genre is well within the capabilities of web-based rendering (WebGL). The overhead of learning Dart and using the less mature Flame engine doesn't justify the marginal performance gain for a puzzle game that doesn't require physics simulation or complex 3D rendering.
-
-### Recommended Tech Stack Summary
-
-| Layer | Technology |
-|---|---|
-| **Game Engine** | Phaser 3.80+ |
-| **Language** | TypeScript |
-| **Build Tool** | Vite |
-| **Offline/PWA** | Workbox (service worker tooling) |
-| **Native Wrapper** | Capacitor |
-| **Asset Format** | WebP (images), OGG/MP3 (audio), JSON (level data) |
-| **State Persistence** | IndexedDB via Capacitor Preferences or localForage |
-| **Testing** | Vitest (unit), Playwright (E2E) |
-| **CI/CD** | GitHub Actions |
-
-### Project Structure (Proposed)
-
-```
-fruit-crush/
-  src/
-    scenes/          # Phaser scenes (Boot, Menu, Game, LevelComplete)
-    objects/          # Game objects (Fruit, Board, SpecialItem)
-    utils/            # Helpers (scoring, match detection, cascade logic)
-    config/           # Game config, level definitions
-    assets/           # Sprites, audio, fonts
-  public/
-    manifest.json     # PWA manifest
-    sw.js             # Service worker (generated by Workbox)
-  capacitor/          # Native project files (iOS/Android)
-  tests/              # Unit and integration tests
-```
-
-### Next Steps
-
-1. Initialize a Phaser 3 + TypeScript + Vite project
-2. Implement the core grid and match-3 logic
-3. Add touch input (swipe to swap)
-4. Build fruit sprites and swap/cascade animations
-5. Implement special items (striped, wrapped, rainbow)
-6. Add level objectives and progression
-7. Configure PWA with service worker for offline support
-8. Wrap with Capacitor for native app store builds
-9. Test on iOS and Android devices
 
 ---
 
@@ -190,8 +402,9 @@ fruit-crush/
 - [Phaser 3 Documentation](https://phaser.io/)
 - [Capacitor Documentation](https://capacitorjs.com/)
 - [Workbox Documentation](https://developer.chrome.com/docs/workbox/)
+- [Supabase Storage Docs](https://supabase.com/docs/guides/storage)
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app/)
+- [localForage](https://localforage.github.io/localForage/)
 - [Flutter Casual Games Toolkit](https://docs.flutter.dev/resources/games-toolkit)
-- [PWA Game Development Guide](https://meliorgames.com/game-development/pwa-game-development-how-to-create-a-progressive-web-game/)
+- [Flutter Crush (Match-3 reference)](https://github.com/boeledi/flutter_crush)
 - [PWA iOS Limitations 2026](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide)
-- [Phaser vs PixiJS Comparison](https://aircada.com/blog/pixijs-vs-phaser-3)
-- [Flutter Crush (Match-3 in Flutter)](https://github.com/boeledi/flutter_crush)
