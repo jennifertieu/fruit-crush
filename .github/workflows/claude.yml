@@ -24,6 +24,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           assignee_trigger: true
-          prompt: Read the issue title and body, implement the requested feature, and open a PR.
+          prompt: Read the issue title and body, implement the requested feature, and open a PR. In the PR description, include "Closes #<issue-number>" so the issue is automatically closed when the PR is merged.
           show_full_output: true
           claude_args: ${{ (contains(github.event.issue.labels.*.name, 'claude-opus') || contains(github.event.pull_request.labels.*.name, 'claude-opus')) && '--model claude-opus-4-6' || '--model claude-sonnet-4-6' }}
