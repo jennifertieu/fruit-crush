@@ -4,7 +4,19 @@
       "Bash(gh *)",
       "Bash(git *)",
       "Bash(npm *)",
-      "Bash(node *)"
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(mkdir *)",
+      "Bash(ls *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(*)",
+      "WebSearch(*)"
     ]
   }
 }
